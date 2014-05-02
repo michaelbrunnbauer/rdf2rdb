@@ -1,0 +1,175 @@
+
+RDF2RDB Version 0.52 by Michael Brunnbauer, netEstate GmbH 
+
+This tool converts RDF data in several formats to a MySQL database.
+
+Project homepage: http://www.netestate.de/De/Loesungen/RDF2RDB
+You can contact me at brunni@netestate.de
+
+Quick start
+-----------
+
+-Make sure that Python 2 is installed: http://www.python.org/
+ The tool was tested with Python 2.6. If you have troubles with newer 
+ 2.x versions contact us.
+
+-Install the MySQL module for Python: 
+ http://sourceforge.net/projects/mysql-python
+
+-Install the RDFLib module for Python:
+ https://github.com/RDFLib/rdflib/
+
+Create a fresh MySQL database with default character set = utf8 and
+adjust database credentials at the beginning of settings.py. Then run
+rdf2rdb.py with one or several files or URLs containing RDF data in
+a format supported by RDFLib:
+
+./rdf2rdb.py http://www.w3.org/People/Berners-Lee/card.rdf
+
+./rdf2rdb.py http://xmlns.com/foaf/spec/index.rdf http://www.w3.org/People/Berners-Lee/card.rdf
+
+You can add more data to the database by calling rdf2rdb again. It uses 
+the file rdf2rdb.pickle to save state information between runs. Tables and
+columns may be renamed or dropped in incremental runs due to the additional
+information that is considered and to avoid name collisions.
+
+Call ./rdf2rdb without options to see available command line options.
+
+If you have installed a plugin parser for RDFlib and are working with 
+local files, you may have to add the filename extension in settings.py 
+(filenameextensions).
+
+Database structure
+------------------
+
+For every class a thing belongs to, a table with the class name is created:
+
+ <class name>
+
+The table contains at least these fields:
+
+ <class name>_id (The primary key, an integer)
+ uri (The URI of that thing)
+
+Functional properties with a datatype are stored as columns in these tables:
+
+ <property name> (The value of the property for the thing, NULL if not known)
+
+Functional properties are properties with only one value for each thing.
+
+Datatype properties connect things with data values (string, integer, 
+date, etc). Object properties connect things with other things.
+
+For object properties, a table is created for every class combination seen
+with this property:
+
+ <class name 1>_<property name>_<class name 2>
+
+The table has the following fields:
+
+ <class name 1>_id1 (The primary key of the thing in table <class name 1>
+ <class name 2>_id1 (The primary key of the thing in table <class name 2>
+
+For non functional datatype properties, a table is created for every 
+class/datatype combination seen with this property:
+
+ <class name>_<property name>_<datatype>
+
+<datatype> is the internal datatype name ('string','int','boolean', etc.).
+settings.py defines a mapping from datatype URIs (like 
+"http://www.w3.org/2001/XMLSchema#integer") to the internal datatype name 
+and from the internal datatype name to the MySQL datatype and an optional 
+conversion function.
+
+The table for a non functional datatype property has the following fields:
+
+ <class name>_id (The primary key of the thing in table <class name>
+ <property name> (The value of the property for the thing)
+
+If a thing has several classes, it will be be contained in all 
+corresponding class tables. The information about this thing specified
+via properties will be replicated in all corresponding class and property 
+tables unless a domain or range has been specified for the property in 
+the RDF data.
+
+In RDF, classes and properties are identified with URIs. The information
+what names have been chosen for them in the database is stored in the 
+table labels:
+
+ uri (The uri of the class/property)
+ dblabel (The name of the class/property in this database)
+
+Also, for quick lookups of classes and primary keys of a thing, the table 
+uris is created:
+
+ uri (The uri of the thing)
+ class (The class name of the thing in the database)
+ id (The primary key of the thing in this table)
+
+By default, rdfs:label and rdfs:comment are considered functional 
+properties. You can change this behavior in settings.py
+
+Every datatype property is created as functional property in the class 
+tables and converted to a nonfunctional property with an extra table if
+a second value for the property with the same datatype is seen in the data 
+and the property was not declared as functional. This conversion only 
+affects class/datatype combinations for which second values have been seen 
+so a property can be "functional" for one class/datatype and "non 
+functional" for another. If several different datatypes are seen for a 
+functional property, the columns in the class tables are named 
+<property name>_<datatype> instead of <property name>.
+
+This deviance from the correct semantics of funtional and non functional
+was made in consideration of messy data.
+
+Non functional datatype properties are converted back to functional 
+with a random value for each datatype chosen if the property is declared 
+functional in the RDF data later.
+
+Entailment
+----------
+
+All entailments of the following properties should be generated:
+
+ rdfs:subClassOf
+ rdfs:subPropertyOf
+ rdfs:domain
+ rdfs:range
+ owl:equivalentClass
+ owl:equivalentProperty
+ owl:FunctionalProperty (currently supported only for datatype properties)
+
+If you don't need this, you can use the command line option -n to disable 
+entailments for better performance.
+
+Things may also be faster if you parse ontology files first.
+
+owl:Thing
+---------
+
+Things for which a class is not yet known are assigned the class owl:Thing.
+The tables corresponding to owl:Thing are not very useful for a database 
+user but are needed for incremental runs.
+
+After every run, things that got stored initially there but got another 
+class later are removed from these tables and all empty tables are 
+removed.
+
+You can drop all tables related to owl:Thing after a run by specifing the
+command line option -r. Be aware that information may be lost that could 
+be used in later incremental runs.
+
+T-Box data
+----------
+
+If the tool recognises that information is about properties and classes,
+it creates no tables in the database for it. This behaviour can be disabled
+with the -t command line switch.
+
+Language tags
+-------------
+
+Multilingual database schemas are currently not supported. You can specify
+which language tags you consider relevant in settings.py (triples with 
+other language tags will be dropped). The language information is not 
+represented in the database.

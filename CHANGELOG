@@ -1,0 +1,32 @@
+
+version 0.52
+------------
+
+-fixed a bug in dbdatatypeproperty.has_value():
+ where clause did not use the _<self.datatype> suffix:
+ sql='select '+field+'_'+self.datatype+' from '+tb+' where '+pk+'=%s AND '+field+'=%s'
+
+-fixed a bug in dbschema.hasnamecollision():
+ label+='_'.datatypeproperty.datatype
+ correct version:
+ label+='_'+datatypeproperty.datatype
+
+-added option to print out processed triples
+
+-added support for XSD:date,datetime,double and float
+
+-added option to log MySQL commands that query data
+
+-corrected indentation of Python code
+
+version 0.51
+------------
+
+-The domain/range entailments of subPropertyOf are now generated before the
+ data entailments
+
+-if P1 subPropertyOf P2 and x P1 y, then x P2 y was only generated for the
+ domains/ranges of P1 instead of the domains/ranges of P2
+
+initial version 0.5
+-------------------

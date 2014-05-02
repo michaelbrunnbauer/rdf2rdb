@@ -1,0 +1,9 @@
+-more comments in the code
+-better performance
+ -pass1 for T-box, pass2 for A-box
+-support for owl:sameAs
+-support for owl:functionalProperty
+-support functional objectproperties
+-save T-box information in db instead of Python pickle file
+-allow for database text field size to be adjusted at runtime
+-represent language information in database

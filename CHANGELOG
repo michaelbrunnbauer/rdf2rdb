@@ -1,4 +1,9 @@
 
+version 0.53
+------------
+
+-added support for PostgreSQL
+
 version 0.52
 ------------
 

@@ -9,7 +9,7 @@ import settings
 import sys,os
 import _mysql_exceptions
 
-version=0.52
+version=0.53
 
 rdfns=settings.rdfns
 rdfsns=settings.rdfsns
@@ -37,10 +37,16 @@ def init(conf):
         os.unlink('rdf2rdb.pickle')
     except IOError:
         db=database.dbconnection(dropdb=conf.drop_database,logsql=conf.with_sql_logging, log_queries=conf.with_sql_query_logging)
-        uritype='varchar('+str(settings.max_uri_length)+') binary not null'
-        # no primary key due to key length restrictions
-        db.execute('create table uris (uri '+uritype+',class '+uritype+',id int,index uri_i (uri),index id_i (id),index class_i (class))')
-        db.execute('create table labels (uri '+uritype+',dblabel varchar('+str(settings.max_label_length)+') not null,primary key (uri),index dblabel_i (dblabel))')
+        uritype='varchar('+str(settings.max_uri_length)+')'
+        if db.type=='mysql':
+            uritype+=' binary not null'
+        # no primary key due to key length restrictions in MySQL
+        db.execute('create table uris (uri '+uritype+',class '+uritype+',id int)')
+        db.execute('create index uris_uri_i on uris(uri)')
+        db.execute('create index uris_id_i on uris(id)')
+        db.execute('create index uris_class_i on uris(class)')
+        db.execute('create table labels (uri '+uritype+' primary key,dblabel varchar('+str(settings.max_label_length)+') not null)')
+        db.execute('create index labels_dblabel_i on labels(dblabel)')
         dbs=dbschema(db)
         rdfs=rdfschema()
     dblabels=dbs.dblabels

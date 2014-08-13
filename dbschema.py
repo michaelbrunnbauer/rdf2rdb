@@ -32,7 +32,9 @@ class dbclass(object):
     def create_table(self,dblabels,db):
         tb=dblabels[self.uri]
         pk=tb+"_id"
-        uritype='varchar('+str(settings.max_uri_length)+') binary not null'
+        uritype='varchar('+str(settings.max_uri_length)+')'
+        if db.type=='mysql':
+            uritype+=' binary not null'
         db.execute('create table '+tb+' ('+pk+' int not null, primary key ('+pk+'), uri '+uritype+')')
 
     def rename_table(self,dblabels,oldlabels,db):
@@ -40,7 +42,10 @@ class dbclass(object):
         pk=tb+"_id"
         tb_old=oldlabels[self.uri]
         pk_old=tb_old+"_id"
-        db.execute('alter table '+tb_old+' change column '+pk_old+' '+pk+' int not null')
+        if db.type=='mysql':
+            db.execute('alter table '+tb_old+' change column '+pk_old+' '+pk+' int not null')
+        elif db.type=='postgres':
+            db.execute('alter table '+tb_old+' rename '+pk_old+' to '+pk);
         db.execute('alter table '+tb_old+' rename to '+tb)
 
     def drop_table(self,dblabels,db):
@@ -177,7 +182,10 @@ class dbdatatypeproperty(object):
         assert self.isfunctional
         tb=dblabels[self.classuri]
         field=dblabels[self.propertyuri]
-        db.execute('alter table '+tb+' change column '+field+' '+field+'_'+self.datatype+' '+self.sql_datatype)
+        if db.type=='mysql':
+            db.execute('alter table '+tb+' change column '+field+' '+field+'_'+self.datatype+' '+self.sql_datatype)
+        elif db.type=='postgres':
+            db.execute('alter table '+tb+' rename '+field+' to '+field+'_'+self.datatype)
 
     def make_functional(self,dblabels,db):
         tb=dblabels[self.classuri]
@@ -200,7 +208,9 @@ class dbdatatypeproperty(object):
         tb=dblabels[self.classuri]+'_'+dblabels[self.propertyuri]+'_'+self.datatype
         field1=dblabels[self.classuri]+'_id'
         field2=dblabels[self.propertyuri]
-        db.execute('create table '+tb+' ('+field1+' int not null, '+field2+' '+self.sql_datatype+',index '+field1+'_i ('+field1+'))')
+        db.execute('create table '+tb+' ('+field1+' int not null, '+field2+' '+self.sql_datatype+')')
+        idx=db.getuniquelabel() if db.type=='postgres' else field1+'_i'
+        db.execute('create index '+idx+' on '+tb+'('+field1+')')
         tb_old=dblabels[self.classuri]
         field_old=dblabels[self.propertyuri]
         if not self.onlydatatype:
@@ -216,7 +226,11 @@ class dbdatatypeproperty(object):
             if not self.onlydatatype:
                 field+='_'+self.datatype
                 field_old+='_'+self.datatype
-            db.execute('alter table '+tb+' change column '+field_old+' '+field+' '+self.sql_datatype)
+            if db.type=='mysql':
+                db.execute('alter table '+tb+' change column '+field_old+' '+field+' '+self.sql_datatype)
+            elif db.type=='postgres':
+                if field_old!=field:
+                    db.execute('alter table '+tb+' rename '+field_old+' to '+field)
         else:
             tb=dblabels[self.classuri]+'_'+dblabels[self.propertyuri]+'_'+self.datatype
             field1=dblabels[self.classuri]+'_id'
@@ -224,8 +238,14 @@ class dbdatatypeproperty(object):
             tb_old=oldlabels[self.classuri]+'_'+oldlabels[self.propertyuri]+'_'+self.datatype
             field1_old=oldlabels[self.classuri]+'_id'
             field2_old=oldlabels[self.propertyuri]
-            db.execute('alter table '+tb_old+' change column '+field1_old+' '+field1+' int not null')
-            db.execute('alter table '+tb_old+' change column '+field2_old+' '+field2+' '+self.sql_datatype)
+            if db.type=='mysql':
+                db.execute('alter table '+tb_old+' change column '+field1_old+' '+field1+' int not null')
+                db.execute('alter table '+tb_old+' change column '+field2_old+' '+field2+' '+self.sql_datatype)
+            elif db.type=='postgres':
+                if field1_old!=field1:
+                    db.execute('alter table '+tb_old+' rename '+field1_old+' to '+field1)
+                if field2_old!=field2:
+                    db.execute('alter table '+tb_old+' rename '+field2_old+' to '+field2)
             db.execute('alter table '+tb_old+' rename to '+tb)
 
 class dbobjectproperty(object):
@@ -281,7 +301,10 @@ class dbobjectproperty(object):
         tb=dblabels[self.subjectclassuri]+'_'+dblabels[self.propertyuri]+'_'+dblabels[self.objectclassuri]
         field1=dblabels[self.subjectclassuri]+'_id1'
         field2=dblabels[self.objectclassuri]+'_id2'
-        db.execute('insert ignore into '+tb+' ('+field1+','+field2+') values (%s,%s)',id1,id2)
+        try:
+            db.execute('insert into '+tb+' ('+field1+','+field2+') values (%s,%s)',id1,id2)
+        except db.integrityerror:
+            pass
 
     def delete_subject_id(self,id,dblabels,db):
         tb=dblabels[self.subjectclassuri]+'_'+dblabels[self.propertyuri]+'_'+dblabels[self.objectclassuri]
@@ -297,7 +320,9 @@ class dbobjectproperty(object):
         tb=dblabels[self.subjectclassuri]+'_'+dblabels[self.propertyuri]+'_'+dblabels[self.objectclassuri]
         field1=dblabels[self.subjectclassuri]+'_id1'
         field2=dblabels[self.objectclassuri]+'_id2'
-        db.execute('create table '+tb+' ('+field1+' int not null, '+field2+' int not null,primary key ('+field1+','+field2+'),index '+field2+'_i ('+field2+'))')
+        db.execute('create table '+tb+' ('+field1+' int not null, '+field2+' int not null,primary key ('+field1+','+field2+'))')
+        idx=db.getuniquelabel() if db.type=='postgres' else field2+'_i'
+        db.execute('create index '+idx+' on '+tb+'('+field2+')')
 
     def drop_if_empty(self,dblabels,db):
         tb=dblabels[self.subjectclassuri]+'_'+dblabels[self.propertyuri]+'_'+dblabels[self.objectclassuri]
@@ -321,8 +346,14 @@ class dbobjectproperty(object):
         tb_old=oldlabels[self.subjectclassuri]+'_'+oldlabels[self.propertyuri]+'_'+oldlabels[self.objectclassuri]
         field1_old=oldlabels[self.subjectclassuri]+'_id1'
         field2_old=oldlabels[self.objectclassuri]+'_id2'
-        db.execute('alter table '+tb_old+' change column '+field1_old+' '+field1+' int not null')
-        db.execute('alter table '+tb_old+' change column '+field2_old+' '+field2+' int not null')
+        if db.type=='mysql':
+            db.execute('alter table '+tb_old+' change column '+field1_old+' '+field1+' int not null')
+            db.execute('alter table '+tb_old+' change column '+field2_old+' '+field2+' int not null')
+        elif db.type=='postgres':
+            if field1_old!=field1:
+                db.execute('alter table '+tb_old+' rename '+field1_old+' to '+field1)
+            if field2_old!=field2:
+                db.execute('alter table '+tb_old+' rename '+field2_old+' to '+field2)
         db.execute('alter table '+tb_old+' rename to '+tb)
 
 class dbschema(object):

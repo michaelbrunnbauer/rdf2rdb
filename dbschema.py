@@ -209,7 +209,7 @@ class dbdatatypeproperty(object):
         field1=dblabels[self.classuri]+'_id'
         field2=dblabels[self.propertyuri]
         db.execute('create table '+tb+' ('+field1+' int not null, '+field2+' '+self.sql_datatype+')')
-        idx=db.getuniquelabel() if db.type=='postgres' else field1+'_i'
+        idx=db.getuniquelabel()
         db.execute('create index '+idx+' on '+tb+'('+field1+')')
         tb_old=dblabels[self.classuri]
         field_old=dblabels[self.propertyuri]
@@ -321,7 +321,7 @@ class dbobjectproperty(object):
         field1=dblabels[self.subjectclassuri]+'_id1'
         field2=dblabels[self.objectclassuri]+'_id2'
         db.execute('create table '+tb+' ('+field1+' int not null, '+field2+' int not null,primary key ('+field1+','+field2+'))')
-        idx=db.getuniquelabel() if db.type=='postgres' else field2+'_i'
+        idx=db.getuniquelabel()
         db.execute('create index '+idx+' on '+tb+'('+field2+')')
 
     def drop_if_empty(self,dblabels,db):

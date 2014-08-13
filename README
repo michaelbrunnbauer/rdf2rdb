@@ -1,5 +1,5 @@
 
-RDF2RDB Version 0.52 by Michael Brunnbauer, netEstate GmbH 
+RDF2RDB Version 0.53 by Michael Brunnbauer, netEstate GmbH 
 
 This tool converts RDF data in several formats to a MySQL database.
 

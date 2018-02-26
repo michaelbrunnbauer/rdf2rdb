@@ -17,7 +17,7 @@ Quick start
  http://sourceforge.net/projects/mysql-python
 
 -Install the RDFLib module for Python:
- https://github.com/RDFLib/rdflib/
+ https://pypi.python.org/pypi/rdflib
 
 Create a fresh MySQL database with default character set = utf8 and
 adjust database credentials at the beginning of settings.py. Then run
